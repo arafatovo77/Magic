@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magic — Office Management</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f2f4f7;color:#111}
+  .wrap{max-width:none;width:100%;margin:0 auto;padding:12px}
+  h1{font-size:26px;margin:8px 0 2px}
+  h2{font-size:19px;margin:18px 0 8px}
+  h3{font-size:16px;margin:14px 0 6px}
+  .sub{color:#555;font-size:14px;margin:0 0 12px}
+  .card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px;margin:12px 0}
+  label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
+  input,select{width:100%;padding:12px;font-size:16px;border:1px solid #bbb;border-radius:8px;background:#fff}
+  input[type=file]{padding:8px}
+  .btn{display:inline-block;min-height:46px;padding:12px 18px;font-size:16px;border-radius:8px;border:1px solid #888;background:#e8e8e8;cursor:pointer;margin:4px 4px 4px 0}
+  .btn-p{background:#0b6fa4;color:#fff;border-color:#0b6fa4}
+  .btn-d{background:#c0392b;color:#fff;border-color:#c0392b}
+  .btn-o{background:#fff}
+  .btn-sm{min-height:36px;padding:7px 12px;font-size:14px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .nav .btn{margin:0}
+  .nav .btn.on{background:#0b6fa4;color:#fff;border-color:#0b6fa4}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:#eaf3f8;border:1px solid #bcd6e4;border-radius:10px;padding:12px}
+  .stat b{font-size:22px;display:block}
+  .stat span{font-size:13px;color:#444}
+  .tblwrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{border:1px solid #ccc;padding:7px 8px;text-align:left;white-space:nowrap}
+  th{background:#dbe4ec}
+  .col-etd{background:#FFFF00}
+  .col-smv{background:#C39BD3}
+  #styleHead select{padding:6px 4px;font-size:13px}
+  .mut{color:#666;font-size:13px}
+  #status{background:#fff8d6;border:1px solid #e0c97a;border-radius:8px;padding:10px;margin:10px 0;font-size:14px;min-height:20px}
+  .hide{display:none}
+  .warn{background:#fff3e0;border:1px solid #f0b27a;border-radius:8px;padding:10px;font-size:14px}
+  .rowline{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Magic</h1>
+  <p class="sub">Office Management — phone theke use korar jonno. v1 draft (demo).</p>
+  <div id="status">Ready.</div>
+
+  <!-- ============ LOGIN ============ -->
+  <section id="pageLogin" class="card">
+    <h2 id="loginTitle">Login</h2>
+    <p class="sub" id="loginNote">ID ar password diye login koren.</p>
+    <label>ID</label>
+    <input id="loginId" type="text" autocomplete="username" placeholder="Apnar ID">
+    <label>Password</label>
+    <input id="loginPw" type="password" autocomplete="current-password" placeholder="Password">
+    <div style="margin-top:12px">
+      <button class="btn btn-p" id="btnLogin">Login</button>
+      <button class="btn btn-o" id="btnRegister">Notun user register</button>
+    </div>
+    <p class="mut" id="registerNote">Prothom je register korbe, se ADMIN hobe. Pore jara register korbe, tara team user hobe — admin tader buyer assign korle tobe data dekhte parbe.</p>
+    <p class="mut">Password kokhono plain text-e save hoy na — sudhu SHA-256 hash save hoy.</p>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section id="pageApp" class="hide">
+    <div class="rowline">
+      <span id="whoLine" style="font-weight:600"></span>
+      <button class="btn btn-o btn-sm" id="btnLogout">Logout</button>
+    </div>
+    <div class="nav">
+      <button class="btn on" data-nav="styles">Style List</button>
+      <button class="btn" data-nav="dash">Dashboard</button>
+      <button class="btn" data-nav="form">Notun / Edit Style</button>
+      <button class="btn" data-nav="import">Import Excel</button>
+      <button class="btn hide" id="navUsers" data-nav="users">Users (Admin)</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="tab-dash" class="hide">
+      <div class="card">
+        <h2>Dashboard</h2>
+        <p class="sub">Sudhu apnar dekhar moto data ekhane dekhabe (admin sob dekhte parbe).</p>
+        <div class="grid">
+          <div class="stat"><b id="stTotal">0</b><span>Total styles</span></div>
+          <div class="stat"><b id="stBuyers">0</b><span>Total buyers</span></div>
+          <div class="stat"><b id="stQty">0</b><span>Total order qty</span></div>
+          <div class="stat"><b id="stMonth">0</b><span>Ei month-e add hoyeche</span></div>
+        </div>
+        <h3>Buyer-wise count</h3>
+        <div class="tblwrap"><table>
+          <thead><tr><th>Buyer</th><th>Styles</th><th>Total qty</th></tr></thead>
+          <tbody id="buyerTable"></tbody>
+        </table></div>
+        <div id="demoNote" class="warn hide" style="margin-top:12px">Demo data ache — ei data sudhu try korar jonno, asol office data na.</div>
+        <div id="demoBox" class="hide" style="margin-top:12px">
+          <button class="btn btn-p" id="btnDemo">Load demo data (DEMO)</button>
+          <button class="btn btn-d" id="btnDemoClear">Demo data clear</button>
+          <p class="mut">Demo data: ~8-ta sample style, 3-ta buyer-e (Selected Homme, Selected Femme, Vero Moda).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Style list + filters -->
+    <div id="tab-styles">
+      <div class="card">
+        <h2>Style List</h2>
+        <div class="grid">
+          <div><label>Buyer</label><select id="fBuyer"></select></div>
+          <div><label>Item</label><select id="fItem"></select></div>
+          <div><label>Line</label><select id="fLine"></select></div>
+          <div><label>Month (Created date)</label><select id="fMonth"></select></div>
+        </div>
+        <label>Search (Style ba PO)</label>
+        <input id="fSearch" type="text" placeholder="Style ba PO likhun">
+        <div style="margin-top:12px">
+          <button class="btn btn-p" id="btnFilter">Filter lagan</button>
+          <button class="btn btn-o" id="btnFilterClear">Clear filter</button>
+        </div>
+        <p class="mut" id="listCount"></p>
+        <div style="margin:10px 0">
+          <button class="btn btn-p" id="btnRepExcel">Make Report — Excel</button>
+          <button class="btn btn-p" id="btnRepPdf">Make Report — PDF</button>
+          <button class="btn btn-o" id="btnFullExcel">Pura File — Excel</button>
+          <button class="btn btn-p" id="btnGoImport">Import Excel</button>
+          <button class="btn btn-o" id="btnHeadFilterClear">Heading filter clear</button>
+        </div>
+        <p class="mut">Filter kora report (Excel/PDF): company name + TOTAL hisab soho. Pura File — Excel-e sob visible style (filter chara) sample-er moto asbe.</p>
+        <div class="tblwrap"><table>
+          <thead id="styleHead"></thead>
+          <tbody id="styleBody"></tbody>
+        </table></div>
+        <div id="histBox" class="card" style="display:none;margin-top:14px">
+          <h3 id="histTitle">History</h3>
+          <div id="histBody"></div>
+          <button class="btn btn-o" id="btnHistClose">Bondho koren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add/Edit form -->
+    <div id="tab-form" class="hide">
+      <div class="card">
+        <h2 id="formTitle">Notun Style</h2>
+        <p class="sub">Buyer, PO ar Style — ei 3-ta khali rakha jabe na.</p>
+        <div id="formFields"></div>
+        <div style="margin-top:14px">
+          <button class="btn btn-p" id="btnSaveStyle">Save style</button>
+          <button class="btn btn-o" id="btnFormClear">Form clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import -->
+    <div id="tab-import" class="hide">
+      <div class="card">
+        <h2>Import Excel</h2>
+        <p class="sub">Excel file-er prothom sheet theke porbe. Header row-te column name thakte hobe (Merchandiser, Buyer, PO, Style...). PO + Style mile gele purono row UPDATE hobe, na mille NOTUN row add hobe. Kono purono row DELETE hobe na — purono info sob somoy thakbe. Update hole ager value History-te tarikh diye joma hobe.</p>
+        <input id="importFile" type="file" accept=".xlsx,.xls,.csv">
+        <div style="margin-top:12px">
+          <button class="btn btn-p" id="btnImport">Import koren</button>
+        </div>
+        <p class="mut" id="importResult"></p>
+      </div>
+    </div>
+
+    <!-- Users (admin only) -->
+    <div id="tab-users" class="hide">
+      <div class="card">
+        <h2>Users (Admin)</h2>
+        <div class="tblwrap"><table>
+          <thead><tr><th>ID</th><th>Role</th><th>Buyer access</th><th>Action</th></tr></thead>
+          <tbody id="userBody"></tbody>
+        </table></div>
+        <h3>Notun user banan</h3>
+        <label>ID</label><input id="uId" type="text" placeholder="Notun ID">
+        <label>Password</label><input id="uPw" type="password" placeholder="Password">
+        <label>Role</label>
+        <select id="uRole"><option value="team">team</option><option value="admin">admin</option></select>
+        <label>Team (team user-er jonno — team bachle buyer team theke asbe)</label>
+        <select id="uTeam"></select>
+        <label>Buyer access (team chara user-er jonno)</label>
+        <div id="uBuyers"></div>
+        <label>Notun buyer add (comma diye alada koren)</label>
+        <input id="uBuyerNew" type="text" placeholder="jemon: Selected Homme, Vero Moda">
+        <div style="margin-top:12px">
+          <button class="btn btn-p" id="btnCreateUser">User banan</button>
+        </div>
+        <h3>Team user-er buyer bodlan</h3>
+        <label>User</label><select id="euSel"></select>
+        <div id="euBuyers"></div>
+        <div style="margin-top:12px">
+          <button class="btn btn-p" id="btnSaveBuyers">Buyer save koren</button>
+        </div>
+        <label>User-er team bodlan (ek team theke onno team-e)</label>
+        <select id="euTeam"></select>
+        <div style="margin-top:12px">
+          <button class="btn btn-p" id="btnMoveTeam">Team bodlan</button>
+        </div>
+        <h3>Team (5–7 jon per team)</h3>
+        <p class="sub">Main admin sob dekhbe. Team-er buyer ekbar assign korlei oi team-er sob member (5–7 jon) sei buyer-er kaj korte parbe.</p>
+        <div class="tblwrap"><table>
+          <thead><tr><th>Team</th><th>Buyer</th><th>Member</th><th>Action</th></tr></thead>
+          <tbody id="teamBody"></tbody>
+        </table></div>
+        <label>Team-er nam</label><input id="tName" type="text" placeholder="jemon: Team A">
+        <label>Team-er buyer</label>
+        <div id="tBuyers"></div>
+        <label>Notun buyer add (comma diye alada koren)</label>
+        <input id="tNew" type="text" placeholder="jemon: TOPSHOP">
+        <div style="margin-top:12px">
+          <button class="btn btn-p" id="btnCreateTeam">Team banan</button>
+        </div>
+        <div id="teamEditBox" style="display:none;margin-top:12px">
+          <h4 id="teamEditTitle">Team buyer bodlan</h4>
+          <div id="tEditBuyers"></div>
+          <label>Notun buyer add (comma diye alada koren)</label>
+          <input id="tEditNew" type="text" placeholder="jemon: TOPSHOP">
+          <div style="margin-top:12px"><button class="btn btn-p" id="btnSaveTeamBuyers">Team buyer save koren</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+/* ================= MAGIC v1 — data layer =================
+   All persistence goes through DB.* so a cloud store can replace
+   localStorage later without touching the rest of the code.
+   v1 storage = localStorage on this device only (no multi-device sync). */
+var DB = {
+  load: function(key, fallback){ try{ var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } },
+  save: function(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ setStatus("Save hoy nai — phone-er storage full hote pare."); } }
+};
+function $(id){ return document.getElementById(id); }
+function setStatus(s){ $("status").textContent = s; }
+function esc(s){ return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function num(v){ var n = parseFloat(String(v == null ? "" : v).replace(/,/g, "")); return isNaN(n) ? 0 : n; }
+function normKey(s){ return String(s == null ? "" : s).trim().toLowerCase(); }
+
+/* ---- Pure-JS SHA-256 (ASCII only). Passwords are stored ONLY as this
+   hash — never plain text. Verified against known test vectors. ---- */
+function sha256(ascii){
+  function rightRotate(value, amount){ return (value >>> amount) | (value << (32 - amount)); }
+  var mathPow = Math.pow, maxWord = mathPow(2, 32), lengthProperty = "length", i, j, result = "", words = [];
+  var asciiBitLength = ascii[lengthProperty] * 8;
+  var hash = sha256.h = sha256.h || [], k = sha256.k = sha256.k || [], primeCounter = k[lengthProperty];
+  var isComposite = {};
+  for(var candidate = 2; primeCounter < 64; candidate++){
+    if(!isComposite[candidate]){
+      for(i = 0; i < 313; i += candidate){ isComposite[i] = candidate; }
+      hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+      k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+    }
+  }
+  ascii += "\x80";
+  while(ascii[lengthProperty] % 64 - 56) ascii += "\x00";
+  for(i = 0; i < ascii[lengthProperty]; i++){
+    j = ascii.charCodeAt(i);
+    if(j >> 8) return undefined;
+    words[i >> 2] |= j << ((3 - i) % 4) * 8;
+  }
+  words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
+  words[words[lengthProperty]] = (asciiBitLength);
+  for(j = 0; j < words[lengthProperty];){
+    var w = words.slice(j, j += 16);
+    var oldHash = hash;
+    hash = hash.slice(0, 8);
+    for(i = 0; i < 64; i++){
+      var i2 = i + j;
+      var w15 = w[i - 15], w2 = w[i - 2];
+      var a = hash[0], e = hash[4];
+      var temp1 = hash[7]
+        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+        + ((e & hash[5]) ^ ((~e) & hash[6]))
+        + k[i]
+        + (w[i] = (i < 16) ? w[i] : (
+            w[i - 16]
+            + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+            + w[i - 7]
+            + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+          ) | 0
+        );
+      var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+      hash = [(temp1 + temp2) | 0].concat(hash);
+      hash[4] = (hash[4] + temp1) | 0;
+    }
+    for(i = 0; i < 8; i++){ hash[i] = (hash[i] + oldHash[i]) | 0; }
+  }
+  for(i = 0; i < 8; i++){
+    for(j = 3; j + 1; j--){
+      var b = (hash[i] >> (j * 8)) & 255;
+      result += ((b < 16) ? 0 : "") + b.toString(16);
+    }
+  }
+  return result;
+}
+
+/* ================= Fields (exactly the office columns) ================= */
+var FIELDS = [
+  {k:"merchandiser", label:"Merchandiser", t:"text"},
+  {k:"buyer", label:"Buyer", t:"text"},
+  {k:"po", label:"PO", t:"text"},
+  {k:"style", label:"Style", t:"text"},
+  {k:"item", label:"Item", t:"text"},
+  {k:"etd", label:"ETD", t:"text"},
+  {k:"createdDate", label:"Created date", t:"text"},
+  {k:"leadTime", label:"Lead Time", t:"number"},
+  {k:"fabLeadTime", label:"Fab lead time", t:"text"},
+  {k:"rmgLeadTime", label:"Rmg lead time", t:"text"},
+  {k:"runDay", label:"Run day", t:"text"},
+  {k:"smv", label:"SMV", t:"number"},
+  {k:"storeRef", label:"Store Ref", t:"text"},
+  {k:"fabSR", label:"Fab S/R", t:"text"},
+  {k:"cuttName", label:"Cutt name", t:"text"},
+  {k:"line", label:"Line", t:"text"},
+  {k:"orderQty", label:"Order Qty", t:"number"},
+  {k:"fabricBooking", label:"Fabric Booking", t:"number"},
+  {k:"fabricRcv", label:"Fabric rcv", t:"number"},
+  {k:"fabricTNA", label:"Fabric TNA", t:"text"},
+  {k:"cuttingQty", label:"Cutting Qty", t:"number"},
+  {k:"sewingQty", label:"Sewing Qty", t:"number"},
+  {k:"wash", label:"Wash", t:"text"},
+  {k:"print", label:"Print", t:"text"},
+  {k:"emb", label:"EMB", t:"text"},
+  {k:"logicTNA", label:"Logic TNA", t:"text"},
+  {k:"pcd", label:"PCD", t:"text"},
+  {k:"lockPlan", label:"Lock Plan", t:"text"},
+  {k:"inputStart", label:"Input start", t:"text"},
+  {k:"sewingEnd", label:"Sewing End", t:"text"},
+  {k:"shipDate", label:"Ship Date", t:"text"},
+  {k:"ppStatus", label:"PP Status", t:"text"},
+  {k:"comments", label:"Comments", t:"text"}
+];
+function fieldLabel(k){ for(var i = 0; i < FIELDS.length; i++) if(FIELDS[i].k === k) return FIELDS[i].label; return k; }
+
+/* ================= State ================= */
+var currentUser = null;   /* {name, role, buyers[], team} — never holds a password */
+var editingId = null;
+var editingTeam = null;
+var currentFilter = {buyer:"", item:"", line:"", month:"", q:""};
+
+function loadUsers(){ return DB.load("magic.users", []); }
+function saveUsers(u){ DB.save("magic.users", u); }
+function loadTeams(){ return DB.load("magic.teams", []); }
+function saveTeams(t){ DB.save("magic.teams", t); }
+/* 2-layer access: main admin sob dekhe; team user sudhu tar team-er buyer dekhe.
+   Team-e buyer assign kora hoy, member-ra team theke access pay (5–7 jon per team).
+   Purono user (team field chara) ager moto nijer buyers[] diyei cholbe. */
+function userBuyers(u){
+  if(!u) return [];
+  if(u.team){
+    var teams = loadTeams();
+    for(var i = 0; i < teams.length; i++) if(teams[i].name === u.team) return teams[i].buyers || [];
+    return [];
+  }
+  return u.buyers || [];
+}
+function teamMembers(teamName){ return loadUsers().filter(function(u){ return u.team === teamName; }); }
+function loadStyles(){ return DB.load("magic.styles", []); }
+function saveStyles(s){ DB.save("magic.styles", s); }
+/* ---- Update history: prottek update-e (Edit ba Import) ager value
+   tarikh + somoy diye joma hoy. Key = PO + Style (styleMatchKey).
+   Proti style-e sorboccho 50-ta entry rakha hoy. ---- */
+function loadHistory(){ return DB.load("magic.history", {}); }
+function saveHistory(h){ DB.save("magic.history", h); }
+function todayStamp(){ var n = new Date(); function p(x){ return (x < 10 ? "0" : "") + x; } return {d: n.getFullYear() + "-" + p(n.getMonth() + 1) + "-" + p(n.getDate()), t: p(n.getHours()) + ":" + p(n.getMinutes())}; }
+function diffStyle(oldD, newD){ var out = []; FIELDS.forEach(function(f){ var o = oldD[f.k] == null ? "" : String(oldD[f.k]); var v = newD[f.k] == null ? "" : String(newD[f.k]); if(o !== v) out.push({k: f.k, o: o, n: v}); }); return out; }
+function appendHistory(key, diff){ if(!diff || !diff.length) return; var h = loadHistory(); var arr = h[key] || []; var st = todayStamp(); arr.push({d: st.d, t: st.t, ch: diff}); if(arr.length > 50) arr = arr.slice(arr.length - 50); h[key] = arr; saveHistory(h); }
+function isAdmin(){ return currentUser && currentUser.role === "admin"; }
+/* Per-buyer isolation: non-admin sees ONLY their team's buyers. */
+function canSeeBuyer(b){ return isAdmin() || (currentUser && userBuyers(currentUser).indexOf(b) >= 0); }
+function visibleStyles(all){ return (all || []).filter(function(d){ return canSeeBuyer(d.buyer); }); }
+function distinctBuyers(all){ var seen = {}, out = []; (all || []).forEach(function(d){ var b = d.buyer || ""; if(b && !seen[b]){ seen[b] = true; out.push(b); } }); return out.sort(); }
+/* Buyer master list from the user's previous report (Best seller file, 2026-11-02).
+   Canonical names: spelling variants in the file (SELECTED - HOMME / Selected Homme,
+   VERO MODA - NOOS / Vero Moda Noos-V.M, NOISY MAY / NoisyMay-V.M, MAMA LICIUS /
+   Mama.Licious-V.M, etc.) merged into one name each. Admin assignment + forms offer
+   these even before any style data exists; data buyers join the list automatically. */
+var SEED_BUYERS = ["Selected Homme", "Selected Femme", "Selected Annarr", "Vero Moda Noos", "Vero Moda Main", "Vero Moda Girl", "Vero Moda Aware", "Vero Moda Maternity", "Vero Moda Boutique", "Vero Moda Express", "Vero Moda Curve", "Noisy May", "Mama Licious", "Jack and Jones"];
+function masterBuyers(){ var out = SEED_BUYERS.slice(); distinctBuyers(loadStyles()).forEach(function(b){ if(out.indexOf(b) === -1) out.push(b); }); return out.sort(); }
+
+/* ================= Pure logic (filter + upsert) — unit-testable ================= */
+function monthOf(v){
+  var s = String(v == null ? "" : v).trim();
+  var m = s.match(/(\d{4})-(\d{2})/);
+  if(m) return m[1] + "-" + m[2];
+  m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if(m) return m[3] + "-" + m[2];
+  return "";
+}
+function filterStyles(all, f, user){
+  var list = (all || []).filter(function(d){
+    if(user && user.role !== "admin" && userBuyers(user).indexOf(d.buyer) === -1) return false;
+    return true;
+  });
+  if(f.buyer) list = list.filter(function(d){ return d.buyer === f.buyer; });
+  if(f.item) list = list.filter(function(d){ return d.item === f.item; });
+  if(f.line) list = list.filter(function(d){ return d.line === f.line; });
+  if(f.month) list = list.filter(function(d){ return monthOf(d.createdDate) === f.month; });
+  if(f.q){
+    var q = f.q.trim().toLowerCase();
+    if(q) list = list.filter(function(d){
+      return (d.style || "").toLowerCase().indexOf(q) >= 0 || (d.po || "").toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  return list;
+}
+function styleMatchKey(d){ return normKey(d.po) + "|||" + normKey(d.style); }
+/* Upsert: PO + Style match -> UPDATE (keeps _id/_addedAt); else ADD.
+   NEVER deletes. canSee(d.buyer) false -> skipped (buyer isolation). */
+function upsertStyles(existing, incoming, canSee){
+  var res = {list: existing.slice(), added: 0, updated: 0, skipped: 0, changes: []};
+  var idx = {};
+  res.list.forEach(function(d, i){ idx[styleMatchKey(d)] = i; });
+  incoming.forEach(function(d){
+    if(!normKey(d.po) || !normKey(d.style)){ res.skipped++; return; }
+    if(canSee && !canSee(d.buyer)){ res.skipped++; return; }
+    var k = styleMatchKey(d);
+    if(idx.hasOwnProperty(k)){
+      var old = res.list[idx[k]];
+      var merged = {};
+      FIELDS.forEach(function(f){ merged[f.k] = d[f.k] == null ? (old[f.k] == null ? "" : old[f.k]) : d[f.k]; });
+      merged._id = old._id; merged._addedAt = old._addedAt; merged._demo = old._demo || false;
+      var diff = diffStyle(old, merged);
+      if(diff.length) res.changes.push({key: k, po: d.po, style: d.style, diff: diff});
+      res.list[idx[k]] = merged; res.updated++;
+    } else {
+      res.list.push(d); idx[k] = res.list.length - 1; res.added++;
+    }
+  });
+  return res;
+}
+
+/* ================= Auth ================= */
+function refreshLoginScreen(){
+  var users = loadUsers();
+  if(!users.length){
+    $("loginTitle").textContent = "Prothom setup — Admin account banan";
+    $("loginNote").textContent = "Ekhono kono user nai. Prothom je register korbe, se ADMIN hobe.";
+    $("btnRegister").textContent = "Admin account banan";
+  } else {
+    $("loginTitle").textContent = "Login";
+    $("loginNote").textContent = "ID ar password diye login koren.";
+    $("btnRegister").textContent = "Notun user register";
+  }
+}
+function doLogin(){
+  var id = $("loginId").value.trim(), pw = $("loginPw").value;
+  if(!id || !pw){ setStatus("ID ar password 2-tai lagbe."); return; }
+  var hash = sha256(pw);
+  if(hash === undefined){ setStatus("Password-e sudhu English letter, number ar symbol use koren."); return; }
+  var users = loadUsers(), found = null;
+  for(var i = 0; i < users.length; i++) if(users[i].name === id) found = users[i];
+  if(!found || found.passHash !== hash){ setStatus("ID ba password vul."); return; }
+  currentUser = {name: found.name, role: found.role, buyers: found.buyers || [], team: found.team || ""};
+  DB.save("magic.session", {name: currentUser.name, role: currentUser.role});
+  afterLogin();
+}
+function doRegister(){
+  var id = $("loginId").value.trim(), pw = $("loginPw").value;
+  if(!id || !pw){ setStatus("ID ar password 2-tai lagbe."); return; }
+  var hash = sha256(pw);
+  if(hash === undefined){ setStatus("Password-e sudhu English letter, number ar symbol use koren."); return; }
+  var users = loadUsers();
+  for(var i = 0; i < users.length; i++) if(users[i].name === id){ setStatus("Ei ID age theke ache — login koren."); return; }
+  var role = users.length === 0 ? "admin" : "team";
+  users.push({name: id, passHash: hash, role: role, buyers: [], team: ""});
+  saveUsers(users);
+  currentUser = {name: id, role: role, buyers: [], team: ""};
+  DB.save("magic.session", {name: id, role: role});
+  setStatus(role === "admin" ? "Admin account hoye geche. Apni ekhon admin." : "Team account hoye geche. Admin apnake buyer assign korle tobe data dekhte parben.");
+  afterLogin();
+}
+function doLogout(){
+  currentUser = null;
+  try{ localStorage.removeItem("magic.session"); }catch(e){}
+  $("pageApp").classList.add("hide");
+  $("pageLogin").classList.remove("hide");
+  $("loginPw").value = "";
+  refreshLoginScreen();
+  setStatus("Logout hoye geche.");
+}
+function afterLogin(){
+  $("pageLogin").classList.add("hide");
+  $("pageApp").classList.remove("hide");
+  $("whoLine").textContent = "Login: " + currentUser.name + " (" + currentUser.role + ")";
+  $("navUsers").classList.toggle("hide", !isAdmin());
+  $("demoBox").classList.toggle("hide", !isAdmin());
+  buildForm();
+  showTab("styles");
+}
+$("btnLogin").onclick = doLogin;
+$("btnRegister").onclick = doRegister;
+$("btnLogout").onclick = doLogout;
+$("loginPw").addEventListener("keydown", function(e){ if(e.key === "Enter") doLogin(); });
+
+/* ================= Navigation ================= */
+function showTab(tab){
+  ["dash", "styles", "form", "import", "users"].forEach(function(t){
+    $("tab-" + t).classList.toggle("hide", t !== tab);
+  });
+  var btns = document.querySelectorAll("[data-nav]");
+  btns.forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-nav") === tab); });
+  if(tab === "dash") renderDashboard();
+  if(tab === "styles"){ refreshFilterOptions(); renderStyleList(); }
+  if(tab === "users") renderUsers();
+}
+document.querySelectorAll("[data-nav]").forEach(function(b){
+  b.addEventListener("click", function(){
+    if(b.getAttribute("data-nav") === "users" && !isAdmin()){ setStatus("Users sudhu admin dekhte parbe."); return; }
+    showTab(b.getAttribute("data-nav"));
+  });
+});
+
+/* ================= Dashboard (visible data only) ================= */
+function renderDashboard(){
+  var vis = visibleStyles(loadStyles());
+  var buyers = distinctBuyers(vis);
+  var qty = 0; vis.forEach(function(d){ qty += num(d.orderQty); });
+  var now = new Date();
+  var thisMonth = now.getFullYear() + "-" + ("0" + (now.getMonth() + 1)).slice(-2);
+  var monthCount = 0;
+  vis.forEach(function(d){
+    var a = String(d._addedAt || "").slice(0, 7);
+    if(a === thisMonth) monthCount++;
+  });
+  $("stTotal").textContent = vis.length;
+  $("stBuyers").textContent = buyers.length;
+  $("stQty").textContent = qty;
+  $("stMonth").textContent = monthCount;
+  var html = "";
+  buyers.forEach(function(b){
+    var rows = vis.filter(function(d){ return d.buyer === b; });
+    var q = 0; rows.forEach(function(d){ q += num(d.orderQty); });
+    html += "<tr><td>" + esc(b) + "</td><td>" + rows.length + "</td><td>" + q + "</td></tr>";
+  });
+  $("buyerTable").innerHTML = html || '<tr><td colspan="3" class="mut">Kono data nai. Demo data load kore try koren (admin), ba Import koren.</td></tr>';
+  var hasDemo = vis.some(function(d){ return d._demo; });
+  $("demoNote").classList.toggle("hide", !hasDemo);
+}
+
+/* ================= Style list + filters ================= */
+function fillSelect(sel, values, keep){
+  var html = '<option value="">All</option>';
+  values.forEach(function(v){ html += '<option value="' + esc(v) + '"' + (v === keep ? " selected" : "") + ">" + esc(v) + "</option>"; });
+  sel.innerHTML = html;
+}
+function refreshFilterOptions(){
+  var vis = visibleStyles(loadStyles());
+  var buyers = isAdmin() ? masterBuyers() : userBuyers(currentUser).slice().sort();
+  var items = [], lines = [], months = [];
+  vis.forEach(function(d){
+    if(d.item && items.indexOf(d.item) === -1) items.push(d.item);
+    if(d.line && lines.indexOf(d.line) === -1) lines.push(d.line);
+    var m = monthOf(d.createdDate);
+    if(m && months.indexOf(m) === -1) months.push(m);
+  });
+  items.sort(); lines.sort(); months.sort().reverse();
+  fillSelect($("fBuyer"), buyers, currentFilter.buyer);
+  fillSelect($("fItem"), items, currentFilter.item);
+  fillSelect($("fLine"), lines, currentFilter.line);
+  fillSelect($("fMonth"), months, currentFilter.month);
+  $("fSearch").value = currentFilter.q;
+}
+var headFilters = {};
+function currentFiltered(){
+  var list = filterStyles(loadStyles(), currentFilter, currentUser);
+  Object.keys(headFilters).forEach(function(k){
+    var v = headFilters[k];
+    if(v) list = list.filter(function(d){ return String(d[k] == null ? "" : d[k]) === v; });
+  });
+  list.sort(function(a, b){
+    var x = (a.buyer || "").localeCompare(b.buyer || "");
+    if(x) return x;
+    var y = (a.style || "").localeCompare(b.style || "");
+    if(y) return y;
+    return (a.po || "").localeCompare(b.po || "");
+  });
+  return list;
+}
+function colClass(k){
+  if(k === "etd") return ' class="col-etd"';
+  if(k === "smv") return ' class="col-smv"';
+  return "";
+}
+function renderStyleList(){
+  var list = currentFiltered();
+  $("listCount").textContent = list.length + "-ta style dekhacche (mot visible: " + visibleStyles(loadStyles()).length + ").";
+  var vis = visibleStyles(loadStyles());
+  var headHtml = "<tr><th>SL</th>" + FIELDS.map(function(f){ return "<th" + colClass(f.k) + ">" + esc(f.label) + "</th>"; }).join("") + "<th>Action</th></tr>";
+  var filtHtml = "<tr><th></th>" + FIELDS.map(function(f){
+    var seen = {}, vals = [];
+    vis.forEach(function(d){ var v = d[f.k] == null ? "" : String(d[f.k]); if(v !== "" && !seen[v]){ seen[v] = true; vals.push(v); } });
+    vals.sort();
+    var opts = '<option value="">All</option>' + vals.map(function(v){ return '<option value="' + esc(v) + '"' + (headFilters[f.k] === v ? " selected" : "") + ">" + esc(v) + "</option>"; }).join("");
+    return "<th><select data-hf=\"" + f.k + "\">" + opts + "</select></th>";
+  }).join("") + "<th></th></tr>";
+  $("styleHead").innerHTML = headHtml + filtHtml;
+  $("styleHead").querySelectorAll("[data-hf]").forEach(function(s){
+    s.addEventListener("change", function(){ headFilters[s.getAttribute("data-hf")] = s.value; renderStyleList(); });
+  });
+  var html = "";
+  list.forEach(function(d, i){
+    html += "<tr><td>" + (i + 1) + "</td>" + FIELDS.map(function(f){ return "<td" + colClass(f.k) + ">" + esc(d[f.k]) + "</td>"; }).join("")
+      + '<td><button class="btn btn-o btn-sm" data-edit="' + esc(d._id) + '">Edit</button>'
+      + ' <button class="btn btn-o btn-sm" data-hist="' + esc(styleMatchKey(d)) + '">History</button>'
+      + (isAdmin() ? ' <button class="btn btn-d btn-sm" data-del="' + esc(d._id) + '">Delete</button>' : "")
+      + "</td></tr>";
+  });
+  $("styleBody").innerHTML = html || '<tr><td colspan="' + (FIELDS.length + 2) + '" class="mut">Kono style nai. Filter clear kore dekhen, ba notun style add koren.</td></tr>';
+  $("styleBody").querySelectorAll("[data-edit]").forEach(function(b){
+    b.addEventListener("click", function(){ openEdit(b.getAttribute("data-edit")); });
+  });
+  $("styleBody").querySelectorAll("[data-del]").forEach(function(b){
+    b.addEventListener("click", function(){ deleteStyle(b.getAttribute("data-del")); });
+  });
+  $("styleBody").querySelectorAll("[data-hist]").forEach(function(b){
+    b.addEventListener("click", function(){ showHistory(b.getAttribute("data-hist")); });
+  });
+}
+$("btnHeadFilterClear").onclick = function(){ headFilters = {}; renderStyleList(); };
+$("btnGoImport").onclick = function(){ showTab("import"); };
+function showHistory(key){
+  var st = null;
+  loadStyles().forEach(function(d){ if(styleMatchKey(d) === key) st = d; });
+  $("histTitle").textContent = st ? ("History: " + st.po + " — " + st.style) : "History";
+  var arr = (loadHistory()[key] || []).slice().reverse();
+  var html = "";
+  if(!arr.length) html = '<p class="mut">Ei style-er kono update history nai. Ekhan theke kono update (Edit ba Import) korle ekhane tarikh diye joma hobe.</p>';
+  else arr.forEach(function(e){
+    html += "<p><b>" + esc(e.d) + " " + esc(e.t) + "</b><br>";
+    e.ch.forEach(function(c){
+      html += esc(fieldLabel(c.k)) + ": " + esc(c.o === "" ? "(khali)" : c.o) + " → " + esc(c.n === "" ? "(khali)" : c.n) + "<br>";
+    });
+    html += "</p>";
+  });
+  $("histBody").innerHTML = html;
+  $("histBox").style.display = "block";
+  $("histBox").scrollIntoView();
+}
+$("btnHistClose").onclick = function(){ $("histBox").style.display = "none"; };
+$("btnFilter").onclick = function(){
+  currentFilter = {buyer: $("fBuyer").value, item: $("fItem").value, line: $("fLine").value, month: $("fMonth").value, q: $("fSearch").value};
+  renderStyleList();
+  setStatus("Filter lagano hoyeche.");
+};
+$("btnFilterClear").onclick = function(){
+  currentFilter = {buyer:"", item:"", line:"", month:"", q:""};
+  headFilters = {};
+  refreshFilterOptions(); renderStyleList();
+  setStatus("Filter clear.");
+};
+function deleteStyle(id){
+  if(!isAdmin()){ setStatus("Delete sudhu admin korte parbe."); return; }
+  var all = loadStyles(), found = null;
+  for(var i = 0; i < all.length; i++) if(String(all[i]._id) === String(id)) found = all[i];
+  if(!found){ setStatus("Style-ta pawa jay nai."); return; }
+  if(!confirm("Delete korben? Buyer: " + (found.buyer || "") + ", Style: " + (found.style || ""))) return;
+  saveStyles(all.filter(function(d){ return String(d._id) !== String(id); }));
+  renderStyleList();
+  setStatus("Style delete hoye geche.");
+}
+
+/* ================= Add / Edit form ================= */
+function buildForm(){
+  var html = "";
+  FIELDS.forEach(function(f){
+    if(f.k === "buyer" && !isAdmin()){
+      html += "<label>Buyer</label><select id=\"ff_buyer\"></select>";
+    } else if(f.k === "buyer"){
+      html += "<label>Buyer</label><input id=\"ff_buyer\" type=\"text\" list=\"buyerList\" placeholder=\"Buyer name\">"
+        + '<datalist id="buyerList">' + masterBuyers().map(function(b){ return "<option value=\"" + esc(b) + "\">"; }).join("") + "</datalist>";
+    } else {
+      html += "<label>" + esc(f.label) + "</label><input id=\"ff_" + f.k + "\" type=\"" + f.t + "\"" + (f.t === "number" ? ' step="any"' : "") + ">";
+    }
+  });
+  $("formFields").innerHTML = html;
+  if(!isAdmin()){
+    var sel = $("ff_buyer");
+    var html2 = "";
+    userBuyers(currentUser).forEach(function(b){ html2 += '<option value="' + esc(b) + '">' + esc(b) + "</option>"; });
+    sel.innerHTML = html2;
+  }
+}
+function formValues(){
+  var d = {};
+  FIELDS.forEach(function(f){
+    var el = $("ff_" + f.k);
+    d[f.k] = el ? el.value.trim() : "";
+  });
+  return d;
+}
+function openEdit(id){
+  var all = loadStyles(), found = null;
+  for(var i = 0; i < all.length; i++) if(String(all[i]._id) === String(id)) found = all[i];
+  if(!found){ setStatus("Style-ta pawa jay nai."); return; }
+  if(!canSeeBuyer(found.buyer)){ setStatus("Ei buyer-er data apni dekhte parben na."); return; }
+  editingId = id;
+  buildForm();
+  FIELDS.forEach(function(f){
+    var el = $("ff_" + f.k);
+    if(el) el.value = found[f.k] == null ? "" : found[f.k];
+  });
+  $("formTitle").textContent = "Edit Style — " + (found.style || "");
+  showTab("form");
+  setStatus("Edit koren, tarpor Save style chapen.");
+}
+$("btnSaveStyle").onclick = function(){
+  var d = formValues();
+  if(!d.buyer || !d.po || !d.style){ setStatus("Buyer, PO ar Style — ei 3-ta khali rakha jabe na."); return; }
+  if(!canSeeBuyer(d.buyer)){ setStatus("Ei buyer apnar access-e nai — admin-ke bolen buyer assign korte."); return; }
+  var all = loadStyles();
+  if(editingId){
+    var ok = false;
+    for(var i = 0; i < all.length; i++){
+      if(String(all[i]._id) === String(editingId)){
+        if(!canSeeBuyer(all[i].buyer)){ setStatus("Ei style apni edit korte parben na."); return; }
+        var keep = {_id: all[i]._id, _addedAt: all[i]._addedAt, _demo: all[i]._demo || false};
+        var oldRow = all[i];
+        all[i] = d; all[i]._id = keep._id; all[i]._addedAt = keep._addedAt; all[i]._demo = keep._demo;
+        var ediff = diffStyle(oldRow, all[i]);
+        ok = true; break;
+      }
+    }
+    if(!ok){ setStatus("Style-ta pawa jay nai."); return; }
+    saveStyles(all);
+    if(ediff.length) appendHistory(styleMatchKey(d), ediff);
+    setStatus("Style update hoye geche.");
+  } else {
+    d._id = "m" + Date.now() + Math.floor(Math.random() * 1000);
+    d._addedAt = new Date().toISOString();
+    d._demo = false;
+    all.push(d);
+    saveStyles(all);
+    setStatus("Notun style add hoye geche.");
+  }
+  editingId = null;
+  $("formTitle").textContent = "Notun Style";
+  buildForm();
+  showTab("styles");
+};
+$("btnFormClear").onclick = function(){
+  editingId = null;
+  $("formTitle").textContent = "Notun Style";
+  buildForm();
+  setStatus("Form clear.");
+};
+
+/* ================= Demo data (admin only, clearly labelled) ================= */
+function demoStyles(){
+  var now = new Date().toISOString();
+  function s(buyer, po, style, item, line, qty){
+    var d = {};
+    FIELDS.forEach(function(f){ d[f.k] = ""; });
+    d.merchandiser = "Demo User"; d.buyer = buyer; d.po = po; d.style = style; d.item = item;
+    d.etd = "2026-12-01"; d.createdDate = "2026-10-15"; d.leadTime = "60"; d.smv = "8.50";
+    d.storeRef = "DEMO-REF"; d.fabSR = "100/26"; d.cuttName = "Demo Cutter"; d.line = line;
+    d.orderQty = String(qty); d.fabricBooking = String(qty); d.fabricRcv = String(qty);
+    d.fabricTNA = "Ok"; d.cuttingQty = String(qty); d.sewingQty = "0";
+    d.wash = "No"; d.print = "No"; d.emb = "No"; d.logicTNA = ""; d.pcd = "";
+    d.lockPlan = ""; d.inputStart = ""; d.sewingEnd = ""; d.shipDate = "2026-12-10";
+    d.ppStatus = "Repeat"; d.comments = "DEMO DATA — try korar jonno";
+    d._id = "demo_" + po; d._addedAt = now; d._demo = true;
+    return d;
+  }
+  return [
+    s("Selected Homme", "GMSDEMO0001", "SLHJACKIE SWEAT ZIP JACKET", "Sweatshirt", "I4", 5000),
+    s("Selected Homme", "GMSDEMO0002", "SLHASPEN SS O-NECK TEE", "Basic Tee", "A5", 3000),
+    s("Selected Homme", "GMSDEMO0003", "SLHRELAXMAX GRAPHIC LS TEE", "Basic Tee", "B2", 2500),
+    s("Selected Femme", "GMSDEMO0004", "SLFPOLLY LS BOATNECK", "Semi Critical Tee", "J9", 2000),
+    s("Selected Femme", "GMSDEMO0005", "SLWESSENTIAL SS BOXY TEE", "Basic Tee", "C2", 1800),
+    s("Selected Femme", "GMSDEMO0006", "SLFSTRAIPED LS TOP", "Basic Tee", "D8", 2200),
+    s("Vero Moda", "GMSDEMO0007", "VMVICTORIA SS TOP", "Basic Tee", "H5", 1500),
+    s("Vero Moda", "GMSDEMO0008", "VMMAXI LS SOFT UNECK", "Basic Tee", "K8", 1200)
+  ];
+}
+$("btnDemo").onclick = function(){
+  if(!isAdmin()){ setStatus("Demo data sudhu admin load korte parbe."); return; }
+  var res = upsertStyles(loadStyles(), demoStyles(), function(){ return true; });
+  saveStyles(res.list);
+  setStatus("Demo data load hoye geche: " + res.added + "-ta notun, " + res.updated + "-ta update.");
+  renderDashboard();
+};
+$("btnDemoClear").onclick = function(){
+  if(!isAdmin()){ setStatus("Demo data sudhu admin clear korte parbe."); return; }
+  var all = loadStyles().filter(function(d){ return !d._demo; });
+  saveStyles(all);
+  setStatus("Demo data clear hoye geche.");
+  renderDashboard();
+};
+
+/* ================= Users (admin only) ================= */
+function renderUsers(){
+  if(!isAdmin()) return;
+  var users = loadUsers();
+  var teams = loadTeams();
+  var html = "";
+  users.forEach(function(u){
+    var acc = "";
+    if(u.role === "admin") acc = "sob buyer (admin)";
+    else if(u.team){
+      var tb = userBuyers(u);
+      acc = "Team: " + u.team + (tb.length ? " (" + tb.join(", ") + ")" : " (buyer assign hoy nai)");
+    } else acc = (u.buyers || []).join(", ") || "—";
+    html += "<tr><td>" + esc(u.name) + "</td><td>" + esc(u.role) + "</td><td>" + esc(acc) + "</td><td>"
+      + (u.name === currentUser.name ? '<span class="mut">nijer account</span>'
+        : '<button class="btn btn-d btn-sm" data-u-del="' + esc(u.name) + '">Delete</button>') + "</td></tr>";
+  });
+  $("userBody").innerHTML = html || '<tr><td colspan="4" class="mut">Kono user nai.</td></tr>';
+  $("userBody").querySelectorAll("[data-u-del]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var nm = b.getAttribute("data-u-del");
+      if(nm === currentUser.name){ setStatus("Nijer account delete kora jabe na."); return; }
+      if(!confirm("User delete korben? ID: " + nm)) return;
+      saveUsers(loadUsers().filter(function(u){ return u.name !== nm; }));
+      renderUsers();
+      setStatus("User delete hoye geche.");
+    });
+  });
+  var thtml = "";
+  teams.forEach(function(t){
+    var mems = teamMembers(t.name);
+    thtml += "<tr><td>" + esc(t.name) + "</td><td>" + esc((t.buyers || []).join(", ") || "—") + "</td><td>" + mems.map(function(m){ return esc(m.name); }).join(", ") + " (" + mems.length + " jon)</td><td>"
+      + '<button class="btn btn-o btn-sm" data-t-edit="' + esc(t.name) + '">Buyer</button>'
+      + ' <button class="btn btn-d btn-sm" data-t-del="' + esc(t.name) + '">Delete</button>' + "</td></tr>";
+  });
+  $("teamBody").innerHTML = thtml || '<tr><td colspan="4" class="mut">Kono team nai.</td></tr>';
+  $("teamBody").querySelectorAll("[data-t-del]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var tn = b.getAttribute("data-t-del");
+      if(!confirm("Team delete korben? Team: " + tn + " (member-der team access chole jabe)")) return;
+      saveTeams(loadTeams().filter(function(t){ return t.name !== tn; }));
+      var us = loadUsers();
+      us.forEach(function(u){ if(u.team === tn) u.team = ""; });
+      saveUsers(us);
+      renderUsers();
+      setStatus("Team delete hoye geche: " + tn + ".");
+    });
+  });
+  $("teamBody").querySelectorAll("[data-t-edit]").forEach(function(b){
+    b.addEventListener("click", function(){ openTeamEdit(b.getAttribute("data-t-edit")); });
+  });
+  var allBuyers = masterBuyers();
+  var cb = "";
+  allBuyers.forEach(function(b){
+    cb += '<label style="font-weight:400"><input type="checkbox" value="' + esc(b) + '" style="width:auto"> ' + esc(b) + "</label>";
+  });
+  $("uBuyers").innerHTML = cb || '<p class="mut">Ekhono kono buyer data-e nai — age style/import/demo data lagbe.</p>';
+  $("tBuyers").innerHTML = cb || '<p class="mut">Ekhono kono buyer data-e nai — age style/import/demo data lagbe.</p>';
+  var tOpt = '<option value="">Team chara (ager moto buyer diben)</option>';
+  teams.forEach(function(t){ tOpt += '<option value="' + esc(t.name) + '">' + esc(t.name) + "</option>"; });
+  $("uTeam").innerHTML = tOpt;
+  var euHtml = '<option value="">User bachun</option>';
+  users.forEach(function(u){ if(u.role !== "admin") euHtml += '<option value="' + esc(u.name) + '">' + esc(u.name) + "</option>"; });
+  $("euSel").innerHTML = euHtml;
+  $("euBuyers").innerHTML = "";
+  var euTeamHtml = '<option value="">Team chara</option>';
+  teams.forEach(function(t){ euTeamHtml += '<option value="' + esc(t.name) + '">' + esc(t.name) + "</option>"; });
+  $("euTeam").innerHTML = euTeamHtml;
+}
+function openTeamEdit(tn){
+  var teams = loadTeams(), found = null;
+  for(var i = 0; i < teams.length; i++) if(teams[i].name === tn) found = teams[i];
+  if(!found){ setStatus("Team pawa jay nai."); return; }
+  editingTeam = tn;
+  var allBuyers = masterBuyers();
+  var html = "";
+  allBuyers.forEach(function(b){
+    var chk = (found.buyers || []).indexOf(b) >= 0 ? " checked" : "";
+    html += '<label style="font-weight:400"><input type="checkbox" value="' + esc(b) + '" style="width:auto"' + chk + "> " + esc(b) + "</label>";
+  });
+  $("tEditBuyers").innerHTML = html || '<p class="mut">Kono buyer data nai.</p>';
+  $("teamEditTitle").textContent = "Team buyer bodlan: " + tn;
+  $("tEditNew").value = "";
+  $("teamEditBox").style.display = "block";
+  $("teamEditBox").scrollIntoView();
+}
+$("btnSaveTeamBuyers").onclick = function(){
+  if(!isAdmin() || !editingTeam){ setStatus("Age team bachun."); return; }
+  var teams = loadTeams();
+  for(var i = 0; i < teams.length; i++){
+    if(teams[i].name === editingTeam){
+      teams[i].buyers = checkedBuyers("tEditBuyers", $("tEditNew").value);
+      saveTeams(teams);
+      setStatus("Team buyer save hoyeche: " + editingTeam + ".");
+      renderUsers();
+      return;
+    }
+  }
+  setStatus("Team pawa jay nai.");
+};
+$("btnMoveTeam").onclick = function(){
+  if(!isAdmin()){ setStatus("Sudhu admin team bodlate parbe."); return; }
+  var nm = $("euSel").value;
+  if(!nm){ setStatus("Age user bachun."); return; }
+  var nt = $("euTeam").value;
+  var users = loadUsers();
+  for(var i = 0; i < users.length; i++){
+    if(users[i].name === nm){
+      users[i].team = nt;
+      saveUsers(users);
+      setStatus("Team bodle geche: " + nm + (nt ? " → Team " + nt : " (team chara)") + ".");
+      renderUsers();
+      return;
+    }
+  }
+  setStatus("User pawa jay nai.");
+};
+$("euSel").onchange = function(){
+  var nm = $("euSel").value;
+  var users = loadUsers(), found = null;
+  for(var i = 0; i < users.length; i++) if(users[i].name === nm) found = users[i];
+  if(!found){ $("euBuyers").innerHTML = ""; return; }
+  var allBuyers = masterBuyers();
+  var html = "";
+  var current = found.team ? userBuyers(found) : (found.buyers || []);
+  allBuyers.forEach(function(b){
+    var chk = current.indexOf(b) >= 0 ? " checked" : "";
+    html += '<label style="font-weight:400"><input type="checkbox" value="' + esc(b) + '" style="width:auto"' + chk + "> " + esc(b) + "</label>";
+  });
+  $("euBuyers").innerHTML = html || '<p class="mut">Kono buyer data nai.</p>';
+  if(found.team) $("euBuyers").innerHTML = '<p class="mut">Ei user Team ' + esc(found.team) + '-er member — buyer team theke bodle jabe.</p>' + $("euBuyers").innerHTML;
+};
+function checkedBuyers(boxId, extraText){
+  var out = [];
+  document.querySelectorAll("#" + boxId + ' input[type=checkbox]:checked').forEach(function(c){
+    if(out.indexOf(c.value) === -1) out.push(c.value);
+  });
+  (extraText || "").split(",").forEach(function(b){
+    b = b.trim();
+    if(b && out.indexOf(b) === -1) out.push(b);
+  });
+  return out;
+}
+$("btnCreateUser").onclick = function(){
+  if(!isAdmin()){ setStatus("User sudhu admin banate parbe."); return; }
+  var id = $("uId").value.trim(), pw = $("uPw").value;
+  if(!id || !pw){ setStatus("ID ar password 2-tai lagbe."); return; }
+  var hash = sha256(pw);
+  if(hash === undefined){ setStatus("Password-e sudhu English letter, number ar symbol use koren."); return; }
+  var users = loadUsers();
+  for(var i = 0; i < users.length; i++) if(users[i].name === id){ setStatus("Ei ID age theke ache."); return; }
+  var role = $("uRole").value;
+  var team = $("uTeam").value;
+  var buyers = role === "admin" ? [] : (team ? [] : checkedBuyers("uBuyers", $("uBuyerNew").value));
+  users.push({name: id, passHash: hash, role: role, buyers: buyers, team: role === "team" ? team : ""});
+  saveUsers(users);
+  $("uId").value = ""; $("uPw").value = ""; $("uBuyerNew").value = "";
+  renderUsers();
+  setStatus("User banano hoyeche: " + id + " (" + role + (team ? ", Team " + team : "") + ").");
+};
+$("btnCreateTeam").onclick = function(){
+  if(!isAdmin()){ setStatus("Sudhu admin team banate parbe."); return; }
+  var tn = $("tName").value.trim();
+  if(!tn){ setStatus("Team-er nam lagbe."); return; }
+  var teams = loadTeams();
+  for(var i = 0; i < teams.length; i++) if(teams[i].name === tn){ setStatus("Ei team age theke ache."); return; }
+  teams.push({name: tn, buyers: checkedBuyers("tBuyers", $("tNew").value)});
+  saveTeams(teams);
+  $("tName").value = ""; $("tNew").value = "";
+  renderUsers();
+  setStatus("Team banano hoyeche: " + tn + ".");
+};
+$("btnSaveBuyers").onclick = function(){
+  if(!isAdmin()){ setStatus("Sudhu admin buyer bodlate parbe."); return; }
+  var nm = $("euSel").value;
+  if(!nm){ setStatus("Age user bachun."); return; }
+  var users = loadUsers();
+  for(var i = 0; i < users.length; i++){
+    if(users[i].name === nm){
+      var nb = checkedBuyers("euBuyers", "");
+      if(users[i].team){
+        var teams = loadTeams();
+        for(var j = 0; j < teams.length; j++) if(teams[j].name === users[i].team) teams[j].buyers = nb;
+        saveTeams(teams);
+        setStatus("Team buyer save hoyeche: " + users[i].team + ".");
+      } else {
+        users[i].buyers = nb;
+        saveUsers(users);
+        setStatus("Buyer save hoyeche: " + nm + ".");
+      }
+      renderUsers();
+      return;
+    }
+  }
+  setStatus("User pawa jay nai.");
+};
+
+/* ================= Import Excel ================= */
+function normHeader(s){
+  return String(s == null ? "" : s).trim().toLowerCase().replace(/\s+/g, " ");
+}
+$("btnImport").onclick = function(){
+  var file = $("importFile").files[0];
+  if(!file){ setStatus("Age Excel file bachun."); return; }
+  if(typeof XLSX === "undefined"){ setStatus("Excel library load hoy nai — internet connection check kore abar try koren."); return; }
+  setStatus("Import hocche...");
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var wb = XLSX.read(new Uint8Array(e.target.result), {type: "array"});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: ""});
+      if(rows.length < 2){ $("importResult").textContent = "File-e data row nai."; setStatus("Import hoy nai."); return; }
+      var headerMap = {};
+      rows[0].forEach(function(h, ci){
+        var nh = normHeader(h);
+        FIELDS.forEach(function(f){ if(normHeader(f.label) === nh) headerMap[f.k] = ci; });
+      });
+      if(headerMap.po == null || headerMap.style == null){
+        $("importResult").textContent = "Header-e PO ar Style column pawa jay nai. Column name thik ache kina dekhen.";
+        setStatus("Import hoy nai."); return;
+      }
+      var incoming = [];
+      for(var r = 1; r < rows.length; r++){
+        var row = rows[r];
+        var empty = true;
+        for(var c = 0; c < row.length; c++) if(String(row[c]).trim() !== ""){ empty = false; break; }
+        if(empty) continue;
+        var d = {};
+        FIELDS.forEach(function(f){
+          var ci = headerMap[f.k];
+          d[f.k] = ci == null ? "" : String(row[ci] == null ? "" : row[ci]).trim();
+        });
+        d._id = "m" + Date.now() + "_" + r + "_" + Math.floor(Math.random() * 1000);
+        d._addedAt = new Date().toISOString();
+        d._demo = false;
+        incoming.push(d);
+      }
+      var res = upsertStyles(loadStyles(), incoming, function(b){ return canSeeBuyer(b); });
+      saveStyles(res.list);
+      res.changes.forEach(function(c){ appendHistory(c.key, c.diff); });
+      $("importResult").textContent = "Import sesh: " + res.added + "-ta notun add, " + res.updated + "-ta update, " + res.skipped + "-ta skip (PO/Style khali ba apnar buyer na). Kono purono row delete hoy nai." + (res.changes.length ? " History-te " + res.changes.length + "-ta style-er bodol tarikh diye joma hoyeche." : "");
+      setStatus("Import sesh: add " + res.added + ", update " + res.updated + ", skip " + res.skipped + ".");
+      refreshFilterOptions();
+    }catch(err){
+      $("importResult").textContent = "Import-e vul hoyeche: " + err.message;
+      setStatus("Import hoy nai.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
+
+/* ================= Make Report: Excel + PDF (filtered view) ================= */
+function reportName(ext){
+  var parts = ["Magic-Report"];
+  if(currentFilter.buyer) parts.push(currentFilter.buyer.replace(/[\\\/\?\%\*\:\|\"<>]/g, ""));
+  if(currentFilter.month) parts.push(currentFilter.month);
+  return parts.join("-") + "." + ext;
+}
+/* ---- Report totals (hisab): sudhu qty column-gular jogfol ---- */
+var QTY_FIELDS = ["orderQty", "fabricBooking", "fabricRcv", "cuttingQty", "sewingQty"];
+function totalsFor(list){ var t = {}; QTY_FIELDS.forEach(function(k){ var s = 0; list.forEach(function(d){ s += num(d[k]); }); t[k] = s; }); return t; }
+function fmtTotal(n){ return Math.round(n * 100) / 100; }
+function reportSub(list){ return (currentFilter.buyer ? "Buyer: " + currentFilter.buyer + "  " : "") + (currentFilter.month ? "Month: " + currentFilter.month + "  " : "") + list.length + " styles"; }
+function downloadXlsx(wb, filename){
+  var buf = XLSX.write(wb, {bookType: "xlsx", type: "array"});
+  var blob = new Blob([buf], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+function colLetter(n){ var s = ""; while(n > 0){ var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+$("btnRepExcel").onclick = function(){
+  if(typeof XLSX === "undefined"){ setStatus("Excel library load hoy nai — internet connection check kore abar try koren."); return; }
+  var list = currentFiltered();
+  var t = totalsFor(list);
+  var aoa = [];
+  aoa.push(["GMS COMPOSITE KNITTING INDUSTRIES LTD."]);
+  aoa.push([reportSub(list)]);
+  aoa.push(FIELDS.map(function(f){ return f.label; }));
+  list.forEach(function(d){
+    aoa.push(FIELDS.map(function(f){ return d[f.k] == null ? "" : d[f.k]; }));
+  });
+  aoa.push(FIELDS.map(function(f){
+    if(f.k === "merchandiser") return "TOTAL";
+    if(QTY_FIELDS.indexOf(f.k) >= 0) return fmtTotal(t[f.k]);
+    return "";
+  }));
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!merges"] = [{s: {r: 0, c: 0}, e: {r: 0, c: 32}}, {s: {r: 1, c: 0}, e: {r: 1, c: 32}}];
+  ws["!autofilter"] = {ref: "A3:" + colLetter(FIELDS.length) + (3 + list.length)};
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
+  downloadXlsx(wb, reportName("xlsx"));
+  setStatus("Excel report download hoyeche: " + list.length + "-ta style (TOTAL hisab soho).");
+};
+$("btnFullExcel").onclick = function(){
+  if(typeof XLSX === "undefined"){ setStatus("Excel library load hoy nai — internet connection check kore abar try koren."); return; }
+  var list = visibleStyles(loadStyles());
+  var st = todayStamp();
+  var aoa = [];
+  aoa.push(["", st.d]);
+  aoa.push(FIELDS.map(function(f){ return f.label; }));
+  list.forEach(function(d){
+    aoa.push(FIELDS.map(function(f){ return d[f.k] == null ? "" : d[f.k]; }));
+  });
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!autofilter"] = {ref: "A2:" + colLetter(FIELDS.length) + (2 + list.length)};
+  XLSX.utils.book_append_sheet(wb, ws, "Styles");
+  downloadXlsx(wb, "Magic-Full-File-" + st.d + ".xlsx");
+  setStatus("Pura file Excel download hoyeche: " + list.length + "-ta style.");
+};
+function jspdfReady(){
+  try{
+    if(window.jspdf && window.jspdf.jsPDF) return new window.jspdf.jsPDF({unit: "mm", format: "a4", orientation: "landscape"});
+    return null;
+  }catch(e){ return null; }
+}
+$("btnRepPdf").onclick = function(){
+  var list = currentFiltered();
+  var doc = null;
+  var tries = [[8, 1.2], [7.5, 1], [7, 0.8], [6.5, 0.7], [6, 0.6]];
+  for(var ti = 0; ti < tries.length; ti++){
+    var fs = tries[ti][0], pad = tries[ti][1];
+    doc = jspdfReady();
+    if(!doc){ setStatus("PDF library load hoy nai — internet connection check kore abar try koren."); return; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+    doc.text("GMS COMPOSITE KNITTING INDUSTRIES LTD.", 148.5, 10, {align: "center"});
+    doc.setFontSize(13);
+    doc.text("Style Report", 148.5, 16, {align: "center"});
+    doc.setFont("helvetica", ""); doc.setFontSize(10);
+    var sub = reportSub(list);
+    doc.text(sub, 148.5, 22, {align: "center"});
+    var head = ["SL"].concat(FIELDS.map(function(f){ return f.label; }));
+    var body = [];
+    list.forEach(function(d, i){
+      body.push([String(i + 1)].concat(FIELDS.map(function(f){ return d[f.k] || ""; })));
+    });
+    var rt = totalsFor(list);
+    body.push([""].concat(FIELDS.map(function(f){
+      if(f.k === "merchandiser") return "TOTAL";
+      if(QTY_FIELDS.indexOf(f.k) >= 0) return fmtTotal(rt[f.k]);
+      return "";
+    })));
+    doc.autoTable({
+      startY: 26, margin: {left: 10, right: 10, top: 8},
+      head: [head], body: body, theme: "grid",
+      styles: {font: "helvetica", fontSize: fs, cellPadding: pad, halign: "left", overflow: "linebreak"},
+      headStyles: {fillColor: [184, 196, 220], textColor: 0, fontStyle: "bold"},
+      didParseCell: function(data){
+        if(data.section === "body" && data.row.index === body.length - 1) data.cell.styles.fontStyle = "bold";
+      }
+    });
+    if(doc.getNumberOfPages() === 1) break;
+  }
+  var file = reportName("pdf");
+  doc.save(file);
+  setStatus(doc.getNumberOfPages() === 1 ? "PDF report download hoyeche: " + file : "PDF report download hoyeche (" + doc.getNumberOfPages() + " page-e): " + file);
+};
+
+/* ================= Init: restore session (name + role only) ================= */
+(function init(){
+  refreshLoginScreen();
+  try{
+    var sess = DB.load("magic.session", null);
+    if(sess && sess.name){
+      var users = loadUsers(), found = null;
+      for(var i = 0; i < users.length; i++) if(users[i].name === sess.name) found = users[i];
+      if(found){
+        currentUser = {name: found.name, role: found.role, buyers: found.buyers || [], team: found.team || ""};
+        afterLogin();
+        setStatus("Abar login hoye geche: " + found.name + " (" + found.role + ").");
+        return;
+      }
+    }
+  }catch(e){}
+  setStatus("Ready.");
+})();
+</script>
+</body>
+</html>
